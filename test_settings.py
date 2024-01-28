@@ -27,7 +27,13 @@ TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [
-            os.path.join(os.path.dirname(__file__), "examples", "regular-django", "example", "templates")
+            os.path.join(
+                os.path.dirname(__file__),
+                "examples",
+                "regular-django",
+                "example",
+                "templates",
+            )
         ],
         "APP_DIRS": True,
         "OPTIONS": {
@@ -131,6 +137,7 @@ INSTALLED_APPS = (
     "allauth.socialaccount.providers.mailru",
     "allauth.socialaccount.providers.mediawiki",
     "allauth.socialaccount.providers.meetup",
+    "allauth.socialaccount.providers.metamask",
     "allauth.socialaccount.providers.microsoft",
     "allauth.socialaccount.providers.miro",
     "allauth.socialaccount.providers.naver",
