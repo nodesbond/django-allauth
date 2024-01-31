@@ -1,18 +1,14 @@
 import json
-
-from datetime import timedelta, timezone
-
 from allauth.socialaccount.adapter import get_adapter
 from allauth.socialaccount.helpers import (
     complete_social_login,
-    render_authentication_error,
 )
 from allauth.socialaccount.models import SocialLogin, SocialToken
 from allauth.socialaccount.providers.base.forms import WalletLoginForm
-
+from datetime import timedelta
 from django import forms
 from django.conf import settings
-from django.contrib.auth import logout
+from django.contrib.auth import logout, get_user_model
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse, HttpRequest
 from django.utils import timezone
@@ -133,4 +129,4 @@ class WalletLoginView(View):
             return JsonResponse({"data": None, "success": False}, status=400)
 
         except Exception as e:
-            return JsonResponse({}, status=500)
+            return JsonResponse({"error": str(e)}, status=500)

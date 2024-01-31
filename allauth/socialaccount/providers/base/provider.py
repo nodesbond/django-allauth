@@ -1,7 +1,10 @@
-from django.core.exceptions import ImproperlyConfigured
-
+import random
+import string
 from allauth.socialaccount import app_settings
 from allauth.socialaccount.adapter import get_adapter
+from django.core.exceptions import ImproperlyConfigured
+from eth_account.messages import encode_defunct
+from web3 import Web3
 
 
 class ProviderException(Exception):
@@ -201,3 +204,46 @@ class ProviderAccount(object):
         fashion, without having to worry about it.
         """
         return self.get_brand()["name"]
+
+
+class CryptoWalletAccount(ProviderAccount):
+    def to_str(self):
+        return self.account.uid
+
+
+class CryptoWalletProvider(Provider):
+    id = ""
+    name = ""
+    account_class = CryptoWalletAccount
+
+    @property
+    def get_app_settings(self) -> dict:
+        return app_settings.PROVIDERS.get(self.id, {})
+
+    @staticmethod
+    def get_nonce() -> str:
+        return "".join(
+            random.SystemRandom().choice(string.ascii_uppercase + string.digits)
+            for _ in range(32)
+        )
+
+    def verify_signature(self, account: str, social_token: str, nonce: str) -> bool:
+        w3 = Web3(Web3.HTTPProvider(self.get_app_settings.get("url")))
+        message_hash = encode_defunct(text=social_token)
+        recovered_account_address = w3.eth.account.recover_message(
+            message_hash, signature=nonce
+        )
+        return bool(recovered_account_address.upper() == account.upper())
+
+    def get_login_url(self, request, **kwargs):
+        return ""
+
+    def extract_common_fields(self, data) -> dict:
+        return dict(
+            username=data.get("account"),
+        )
+
+    def extract_uid(self, data) -> str:
+        if "account" not in data:
+            raise ProviderException(f"{self.id} error", data)
+        return str(data["account"])

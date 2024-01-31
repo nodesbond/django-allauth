@@ -1,9 +1,5 @@
 from allauth.socialaccount.providers.metamask.provider import MetamaskProvider
-from django.test.utils import override_settings
-from django.urls import reverse
-
-from allauth.tests import TestCase, patch
-from allauth.utils import get_user_model
+from allauth.tests import TestCase
 
 
 class MetamaskTests(TestCase):
