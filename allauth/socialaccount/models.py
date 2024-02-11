@@ -358,6 +358,7 @@ class SocialLogin(object):
         state["process"] = get_request_param(request, "process", "login")
         state["scope"] = get_request_param(request, "scope", "")
         state["auth_params"] = get_request_param(request, "auth_params", "")
+        state["user_hash"] = get_request_param(request, "user_hash", "")
         return state
 
     @classmethod

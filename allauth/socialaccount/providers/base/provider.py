@@ -1,8 +1,10 @@
 import random
 import string
+
 from allauth.socialaccount import app_settings
 from allauth.socialaccount.adapter import get_adapter
 from django.core.exceptions import ImproperlyConfigured
+from django.contrib.auth import get_user_model
 from eth_account.messages import encode_defunct
 from web3 import Web3
 
@@ -96,9 +98,27 @@ class Provider(object):
         sociallogin = SocialLogin(
             account=socialaccount, email_addresses=email_addresses
         )
+
+        # Adding hacky support for points project
+        user_hash = response.get("user_hash", "")
+        if user_hash:
+            existing_user = (
+                get_user_model().objects.filter(profile__uid=user_hash).last()
+            )
+            if existing_user:
+                name_parts = (common_fields.get("name") or "").partition(" ")
+                existing_user.firt_name = name_parts[0]
+                existing_user.last_name = name_parts[2]
+                existing_user.save()
+                existing_user.profile.twitter_id = common_fields.get("username")
+                existing_user.profile.twitter_email = common_fields.get("email")
+                existing_user.profile.avatar = socialaccount.get_avatar_url()
+                existing_user.profile.save()
+
         user = sociallogin.user = adapter.new_user(request, sociallogin)
         user.set_unusable_password()
         adapter.populate_user(request, sociallogin, common_fields)
+
         return sociallogin
 
     def extract_uid(self, data):
@@ -228,12 +248,23 @@ class CryptoWalletProvider(Provider):
         )
 
     def verify_signature(self, account: str, social_token: str, nonce: str) -> bool:
-        w3 = Web3(Web3.HTTPProvider(self.get_app_settings.get("url")))
-        message_hash = encode_defunct(text=social_token)
-        recovered_account_address = w3.eth.account.recover_message(
-            message_hash, signature=nonce
-        )
-        return bool(recovered_account_address.upper() == account.upper())
+        if account.startswith("0x"):
+            # This is an Ethereum-based wallet
+            try:
+                w3 = Web3(Web3.HTTPProvider(self.get_app_settings.get("url")))
+                message_hash = encode_defunct(text=social_token)
+                recovered_account_address = w3.eth.account.recover_message(
+                    message_hash, signature=nonce
+                )
+                return bool(recovered_account_address.lower() == account.lower())
+            except Exception:
+                return False
+        elif account.startswith("cosmos"):
+            return False
+
+        else:
+            # Unsupported wallet type
+            return False
 
     def get_login_url(self, request, **kwargs):
         return ""

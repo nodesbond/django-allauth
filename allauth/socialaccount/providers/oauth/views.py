@@ -117,11 +117,16 @@ class OAuthCallbackView(OAuthView):
                 # .get() -- e.g. Evernote does not feature a secret
                 token_secret=access_token.get("oauth_token_secret", ""),
             )
+            state = SocialLogin.unstash_state(request)
             login = self.adapter.complete_login(
-                request, app, token, response=access_token
+                request,
+                app,
+                token,
+                response=access_token,
+                **{"user_hash": state.get("user_hash")}
             )
             login.token = token
-            login.state = SocialLogin.unstash_state(request)
+            login.state = state
             return complete_social_login(request, login)
         except OAuthError as e:
             return render_authentication_error(request, provider, exception=e)

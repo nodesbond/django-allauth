@@ -7,6 +7,7 @@ from allauth.socialaccount.models import SocialLogin, SocialToken
 from allauth.socialaccount.providers.base.forms import WalletLoginForm
 from datetime import timedelta
 from django import forms
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import logout, get_user_model
 from django.core.exceptions import PermissionDenied
@@ -15,6 +16,9 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+
+
+Invite = apps.get_model("invites", "Invite")
 
 
 class WalletLoginView(View):
@@ -77,6 +81,7 @@ class WalletLoginView(View):
         try:
             process = data["process"]
             account = data["account"]
+            invite_code = data["invite_code"]
 
             # Store user ID and process type in request
             request.uid = account
@@ -99,6 +104,16 @@ class WalletLoginView(View):
 
                 # Create a social login object from the response
                 login = self.provider.sociallogin_from_response(request, data)
+
+                if invite := Invite.objects.filter(code=invite_code).last():
+                    if not invite.is_valid():
+                        return JsonResponse(
+                            {"data": None, "success": False}, status=401
+                        )
+
+                else:
+                    return JsonResponse({"data": None, "success": False}, status=401)
+
                 login.state = SocialLogin.state_from_request(request)
 
                 # Set up the token with nonce and expiration
@@ -124,9 +139,17 @@ class WalletLoginView(View):
                         login = self.provider.sociallogin_from_response(request, data)
                         login.state = SocialLogin.state_from_request(request)
                         complete_social_login(request, login)
-                        return JsonResponse({"data": None, "success": True}, status=200)
+                        return JsonResponse(
+                            {"data": str(login.user.profile.uid), "success": True},
+                            status=200,
+                        )
 
             return JsonResponse({"data": None, "success": False}, status=400)
 
         except Exception as e:
+            import traceback
+            import sys
+
+            print(traceback.format_exc())
+            print(sys.exc_info()[2])
             return JsonResponse({"error": str(e)}, status=500)
