@@ -3,7 +3,7 @@ from allauth.socialaccount.adapter import get_adapter
 from allauth.socialaccount.helpers import (
     complete_social_login,
 )
-from allauth.socialaccount.models import SocialLogin, SocialToken
+from allauth.socialaccount.models import SocialLogin, SocialToken, SocialAccount
 from allauth.socialaccount.providers.base.forms import WalletLoginForm
 from datetime import timedelta
 from django import forms
@@ -110,9 +110,9 @@ class WalletLoginView(View):
                         return JsonResponse(
                             {"data": None, "success": False}, status=401
                         )
-
                 else:
-                    return JsonResponse({"data": None, "success": False}, status=401)
+                    if not SocialAccount.objects.filter(uid=account).exists():
+                        return JsonResponse({"data": None, "success": False}, status=401)
 
                 login.state = SocialLogin.state_from_request(request)
 

@@ -6,7 +6,7 @@ class WalletLoginForm(Form):
     login_token = fields.CharField(required=False)
     account = fields.CharField(required=True)
     process = fields.CharField(required=True)
-    invite_code = fields.CharField(required=True, max_length=5)
+    invite_code = fields.CharField(required=False, max_length=5)
 
     def clean(self):
         cleaned_data = super().clean()
