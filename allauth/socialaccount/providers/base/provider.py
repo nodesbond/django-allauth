@@ -1,12 +1,22 @@
 import random
 import string
 
+from uuid import UUID
+
 from allauth.socialaccount import app_settings
 from allauth.socialaccount.adapter import get_adapter
 from django.core.exceptions import ImproperlyConfigured
 from django.contrib.auth import get_user_model
 from eth_account.messages import encode_defunct
 from web3 import Web3
+
+
+def is_uuid(uuid_to_test, version=4):
+    try:
+        UUID(uuid_to_test, version=version)
+    except ValueError:
+        return False
+    return True
 
 
 class ProviderException(Exception):
@@ -99,21 +109,25 @@ class Provider(object):
             account=socialaccount, email_addresses=email_addresses
         )
 
-        # Adding hacky support for points project
-        user_hash = response.get("user_hash", "")
-        if user_hash:
-            existing_user = (
-                get_user_model().objects.filter(profile__uid=user_hash).last()
-            )
-            if existing_user:
-                name_parts = (common_fields.get("name") or "").partition(" ")
-                existing_user.firt_name = name_parts[0]
-                existing_user.last_name = name_parts[2]
-                existing_user.save()
-                existing_user.profile.twitter_id = common_fields.get("username")
-                existing_user.profile.twitter_email = common_fields.get("email")
-                existing_user.profile.avatar = socialaccount.get_avatar_url()
-                existing_user.profile.save()
+        try:
+            # Adding hacky support for points project
+            user_hash = response.get("user_hash", "")
+            if is_uuid(user_hash):
+                existing_user = (
+                    get_user_model().objects.filter(profile__uid=user_hash).last()
+                )
+                if existing_user:
+                    name_parts = (common_fields.get("name") or "").partition(" ")
+                    existing_user.firt_name = name_parts[0]
+                    existing_user.last_name = name_parts[2]
+                    existing_user.save()
+                    existing_user.profile.twitter_id = common_fields.get("username")
+                    existing_user.profile.twitter_email = common_fields.get("email")
+                    existing_user.profile.avatar = socialaccount.get_avatar_url()
+                    existing_user.profile.save()
+
+        except Exception as e:
+            print(e)
 
         user = sociallogin.user = adapter.new_user(request, sociallogin)
         user.set_unusable_password()

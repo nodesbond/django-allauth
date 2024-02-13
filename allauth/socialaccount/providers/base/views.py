@@ -105,11 +105,12 @@ class WalletLoginView(View):
                 # Create a social login object from the response
                 login = self.provider.sociallogin_from_response(request, data)
 
-                if invite := Invite.objects.filter(code=invite_code).last():
-                    if not invite.is_valid():
-                        return JsonResponse(
-                            {"data": None, "success": False}, status=401
-                        )
+                if invite_code:
+                    if invite := Invite.objects.filter(code=invite_code).last():
+                        if not invite.is_valid():
+                            return JsonResponse(
+                                {"data": None, "success": False}, status=401
+                            )
                 else:
                     if not SocialAccount.objects.filter(uid=account).exists():
                         return JsonResponse({"data": None, "success": False}, status=401)
@@ -143,6 +144,11 @@ class WalletLoginView(View):
                             {"data": str(login.user.profile.uid), "success": True},
                             status=200,
                         )
+
+                    else:
+                        JsonResponse({"data": "Wrong signature", "success": False}, status=400)
+                else:
+                    JsonResponse({"data": "No existing tokens", "success": False}, status=400)
 
             return JsonResponse({"data": None, "success": False}, status=400)
 
