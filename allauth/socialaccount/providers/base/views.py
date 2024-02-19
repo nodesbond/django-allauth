@@ -10,6 +10,7 @@ from django import forms
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import logout, get_user_model
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse, HttpRequest
 from django.utils import timezone
@@ -91,6 +92,8 @@ class WalletLoginView(View):
             if "login_token" in data:
                 request.session["login_token"] = data["login_token"]
 
+            cache_key = f"allauth.wallet.{account}"
+
             nonce = self.provider.get_nonce()
 
             if process == "token":
@@ -121,6 +124,8 @@ class WalletLoginView(View):
                 login.token = SocialToken(
                     app=self.app, token=nonce, expires_at=expires_at
                 )
+                cache.set(cache_key, nonce, timeout=600)
+
                 ret = complete_social_login(request, login)
 
                 # This is two-step login. Unless we verified the user's signature (in the "verify" step)
@@ -131,10 +136,10 @@ class WalletLoginView(View):
 
             if process == "verify":
                 # Verify the login process using existing tokens
-                if social_token := self._get_existing_tokens(account).last():
+                if token := cache.get(cache_key):
                     nonce = request.session.get("login_token")
                     if self.provider.verify_signature(
-                        account, social_token.token, nonce
+                        account, token, nonce
                     ):
                         request.session["login_token"] = nonce
                         login = self.provider.sociallogin_from_response(request, data)
