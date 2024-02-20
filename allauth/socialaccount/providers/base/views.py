@@ -116,7 +116,9 @@ class WalletLoginView(View):
                             )
                 else:
                     if not SocialAccount.objects.filter(uid=account).exists():
-                        return JsonResponse({"data": None, "success": False}, status=401)
+                        return JsonResponse(
+                            {"data": None, "success": False}, status=401
+                        )
 
                 login.state = SocialLogin.state_from_request(request)
 
@@ -124,6 +126,7 @@ class WalletLoginView(View):
                 login.token = SocialToken(
                     app=self.app, token=nonce, expires_at=expires_at
                 )
+
                 cache.set(cache_key, nonce, timeout=600)
 
                 ret = complete_social_login(request, login)
@@ -135,12 +138,21 @@ class WalletLoginView(View):
                 return JsonResponse({"data": nonce, "success": bool(ret)}, status=200)
 
             if process == "verify":
+                signature = None
+
                 # Verify the login process using existing tokens
                 if token := cache.get(cache_key):
+                    signature = token
+                elif social_token := self._get_existing_tokens(account).last():
+                    signature = social_token.token
+                else:
+                    JsonResponse(
+                        {"data": "No existing tokens", "success": False}, status=400
+                    )
+
+                if signature:
                     nonce = request.session.get("login_token")
-                    if self.provider.verify_signature(
-                        account, token, nonce
-                    ):
+                    if self.provider.verify_signature(account, signature, nonce):
                         request.session["login_token"] = nonce
                         login = self.provider.sociallogin_from_response(request, data)
                         login.state = SocialLogin.state_from_request(request)
@@ -151,9 +163,9 @@ class WalletLoginView(View):
                         )
 
                     else:
-                        JsonResponse({"data": "Wrong signature", "success": False}, status=400)
-                else:
-                    JsonResponse({"data": "No existing tokens", "success": False}, status=400)
+                        JsonResponse(
+                            {"data": "Wrong signature", "success": False}, status=400
+                        )
 
             return JsonResponse({"data": None, "success": False}, status=400)
 
