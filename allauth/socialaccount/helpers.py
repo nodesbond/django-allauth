@@ -73,13 +73,18 @@ def _process_signup(request, sociallogin):
     else:
         # Ok, auto signup it is, at least the email address is ok.
         # We still need to check the username though...
-        if account_settings.USER_MODEL_USERNAME_FIELD:
-            username = user_username(sociallogin.user)
-            try:
-                get_account_adapter(request).clean_username(username)
-            except ValidationError:
-                # This username is no good ...
-                user_username(sociallogin.user, "")
+       def validate_username(request, sociallogin):
+    if account_settings.USER_MODEL_USERNAME_FIELD:
+        username = user_username(sociallogin.user)
+        try:
+            get_account_adapter(request).clean_username(username)
+        except ValidationError:
+            # Reset username if validation fails
+            user_username(sociallogin.user, "")
+
+# In _process_signup function
+validate_username(request, sociallogin)
+
         # TODO: This part contains a lot of duplication of logic
         # ("closed" rendering, create user, send email, in active
         # etc..)
